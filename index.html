@@ -383,6 +383,14 @@
             font-size: 14px !important;
             font-weight: 600 !important;
             line-height: 20px !important;
+            transition: all 0.2s ease;
+        }
+
+        .btn-input:focus {
+            outline: none !important;
+            border-color: var(--primary) !important;
+            background: #ffffff !important;
+            box-shadow: 0 0 0 4px rgba(0, 100, 255, 0.08) !important;
         }
 
         /* 상단 정보 입력창 전용 스타일 */
@@ -864,18 +872,25 @@
 
         .color-swatch-wrapper {
             position: relative;
-            width: 38px;
-            height: 38px;
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            margin-left: 12px;
         }
 
         .color-swatch {
             width: 100%;
             height: 100%;
-            border-radius: 10px;
-            border: 2px solid white;
-            box-shadow: 0 0 0 1px #e5e7eb;
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             cursor: pointer;
             padding: 0;
+            transition: transform 0.2s ease;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
         }
 
         .color-picker-hidden {
@@ -911,28 +926,7 @@
             transform: none !important;
         }
 
-        .color-swatch-wrapper {
-            position: relative;
-            width: 32px;
-            height: 32px;
-            flex-shrink: 0;
-            margin-left: 12px;
-        }
 
-        .color-swatch {
-            width: 100%;
-            height: 100%;
-            border-radius: 8px;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            padding: 0;
-            transition: transform 0.2s ease;
-        }
-
-        .color-swatch:hover {
-            transform: scale(1.1);
-        }
 
         .form-row-group {
             display: flex;
@@ -975,31 +969,74 @@
             }
         }
 
-        .scroll-buttons {
+        .floating-remote {
             position: fixed;
             bottom: 30px;
             right: 30px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             z-index: 1000;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            padding: 12px;
+            border-radius: 30px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .scroll-buttons button {
-            width: 44px;
-            height: 44px;
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .floating-remote button {
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background: white;
+            border: 1px solid #E5E8EB;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
             color: #4E5968;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            backdrop-filter: blur(8px);
-            transition: all 0.2s ease;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             padding: 0;
+        }
+
+        .floating-remote button:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(0, 100, 255, 0.2);
+            border-color: var(--primary);
+        }
+
+        .floating-remote button:active:not(:disabled) {
+            transform: translateY(-1px) scale(0.95);
+        }
+
+        .floating-remote button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background: #f2f4f6;
+        }
+
+        .remote-divider {
+            width: 24px;
+            height: 1px;
+            background: #E5E8EB;
+            margin: 4px auto;
         }
 
         .scroll-buttons button:hover {
@@ -1087,7 +1124,7 @@
                 </div>
 
                 <div class="add-controls">
-                    <button class="btn-add" onclick="addItemRow()">
+                    <button class="btn-add" onclick="saveSnapshot(); addItemRow()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M5 12h14" />
@@ -1095,7 +1132,7 @@
                         </svg>
                         항목 추가
                     </button>
-                    <button class="btn-add btn-add-page" onclick="addSectionTitle()">
+                    <button class="btn-add btn-add-page" onclick="saveSnapshot(); addSectionTitle()">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
@@ -1185,6 +1222,7 @@
 
         const MAX_UNDO = 30;
         let undoHistory = [];
+        let redoHistory = [];
 
         function getSnapshot() {
             const items = [];
@@ -1211,33 +1249,85 @@
                     });
                 }
             });
-            return items;
+
+            return {
+                topTitle: document.getElementById('topTitle').value,
+                topDate: document.getElementById('topDate').value,
+                botText: document.getElementById('botText').value,
+                themeColor: document.getElementById('themeHex').value,
+                items: items
+            };
         }
 
         function saveSnapshot() {
-            undoHistory.push(getSnapshot());
+            const snapshot = getSnapshot();
+            undoHistory.push(JSON.stringify(snapshot));
             if (undoHistory.length > MAX_UNDO) undoHistory.shift();
+            redoHistory = []; // 새로운 동작이 발생하면 Redo 히스토리는 초기화
+            updateRemoteState();
         }
 
-        function restoreSnapshot(items) {
+        function updateRemoteState() {
+            const undoBtn = document.getElementById('remoteUndo');
+            const redoBtn = document.getElementById('remoteRedo');
+            if (undoBtn) undoBtn.disabled = undoHistory.length === 0;
+            if (redoBtn) redoBtn.disabled = redoHistory.length === 0;
+        }
+
+        function restoreSnapshot(data) {
+            if (typeof data === 'string') data = JSON.parse(data);
+            if (!data) return;
+
+            let items = [];
+            if (Array.isArray(data)) {
+                // 구형 백업 포맷 (배열만 있음)
+                items = data;
+            } else {
+                // 신규 포맷 또는 스냅샷 객체
+                if (data.hasOwnProperty('topTitle')) document.getElementById('topTitle').value = data.topTitle;
+                if (data.hasOwnProperty('topDate')) document.getElementById('topDate').value = data.topDate;
+                if (data.hasOwnProperty('botText')) document.getElementById('botText').value = data.botText;
+                if (data.themeColor) updateColorSync('theme', data.themeColor);
+                items = data.items || [];
+            }
+
             const container = document.getElementById('itemsContainer');
             container.innerHTML = '';
             items.forEach(item => {
-                if (item.type === 'item') {
-                    addItemRow(item.itemName, item.unit, item.price);
-                } else if (item.type === 'sectionTitle') {
-                    addSectionTitle(item.value, item.size, item.layout, item.collapsed);
-                } else if (item.type === 'pageBreak') {
-                    addPageBreak();
+                switch(item.type) {
+                    case 'item': addItemRow(item.itemName, item.unit, item.price); break;
+                    case 'sectionTitle': addSectionTitle(item.value, item.size, item.layout, item.collapsed); break;
+                    case 'pageBreak': addPageBreak(); break;
                 }
             });
+
+            // 텍스트 영역 크기 재조정
+            ['topTitle', 'topDate', 'botText'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) autoResizeTextarea(el);
+            });
+            refreshAccordionVisibility();
+            updateRemoteState();
         }
 
         function undo() {
             if (undoHistory.length === 0) return;
-            const snapshot = undoHistory.pop();
-            restoreSnapshot(snapshot);
+            const currentSnapshot = JSON.stringify(getSnapshot());
+            const previousSnapshot = undoHistory.pop();
+            redoHistory.push(currentSnapshot);
+            restoreSnapshot(previousSnapshot);
             debouncedGenerateImages();
+            updateRemoteState();
+        }
+
+        function redo() {
+            if (redoHistory.length === 0) return;
+            const currentSnapshot = JSON.stringify(getSnapshot());
+            const nextSnapshot = redoHistory.pop();
+            undoHistory.push(currentSnapshot);
+            restoreSnapshot(nextSnapshot);
+            debouncedGenerateImages();
+            updateRemoteState();
         }
 
         function markUnsaved() {
@@ -1268,14 +1358,8 @@
         const COPY_SVG_14 = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
 
         function saveProject() {
-            const data = {
-                topTitle: document.getElementById('topTitle').value,
-                topDate: document.getElementById('topDate').value,
-                botText: document.getElementById('botText').value,
-                themeColor: document.getElementById('themeHex').value,
-                bgImage: cachedBgImg ? cachedBgImg.src : null,
-                items: getSnapshot()
-            };
+            const data = getSnapshot();
+            data.bgImage = cachedBgImg ? cachedBgImg.src : null;
 
             const topTitle = document.getElementById('topTitle').value.replace(/[\\/:*?"<>|]/g, "_") || "이벤트";
             const now = new Date();
@@ -1295,21 +1379,29 @@
             reader.onload = function (e) {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (data.hasOwnProperty('topTitle')) {
-                        document.getElementById('topTitle').value = typeof data.topTitle === 'object' ? (data.topTitle.value || "") : data.topTitle;
+                    if (data.hasOwnProperty('topTitle') && typeof data.topTitle !== 'object') {
+                        document.getElementById('topTitle').value = data.topTitle;
                     }
-                    if (data.hasOwnProperty('topDate')) {
-                        document.getElementById('topDate').value = typeof data.topDate === 'object' ? (data.topDate.value || "") : data.topDate;
+                    if (data.hasOwnProperty('topDate') && typeof data.topDate !== 'object') {
+                        document.getElementById('topDate').value = data.topDate;
                     }
-                    if (data.hasOwnProperty('botText')) {
-                        document.getElementById('botText').value = typeof data.botText === 'object' ? (data.botText.value || "") : data.botText;
+                    if (data.hasOwnProperty('botText') && typeof data.botText !== 'object') {
+                        document.getElementById('botText').value = data.botText;
                     }
 
                     if (data.themeColor) updateColorSync('theme', data.themeColor);
                     else if (data.topTitle && data.topTitle.color) updateColorSync('theme', data.topTitle.color);
 
                     if (data.items) {
-                        restoreSnapshot(data.items);
+                        // 신규 백업 포맷 대응: 만약 data.items가 또 객체라면(잘못 중첩된 경우) 그 안의 items를 사용
+                        if (!Array.isArray(data.items) && data.items.items) {
+                            restoreSnapshot(data.items);
+                        } else {
+                            restoreSnapshot(data.items);
+                        }
+                    } else if (Array.isArray(data)) {
+                        // 매우 오래된 포맷 대응
+                        restoreSnapshot(data);
                     }
 
                     if (data.bgImage) {
@@ -1468,20 +1560,37 @@
 
                     const targetNode = node;
                     btn.onclick = () => {
-                        Array.from(container.children).forEach(child => {
-                            if (child.classList.contains('section-title-wrapper')) {
-                                if (child === targetNode) {
-                                    child.classList.remove('collapsed');
-                                } else {
-                                    child.classList.add('collapsed');
+                        const isAlreadyOpen = !targetNode.classList.contains('collapsed');
+
+                        if (isAlreadyOpen) {
+                            targetNode.classList.add('collapsed');
+                        } else {
+                            Array.from(container.children).forEach(child => {
+                                if (child.classList.contains('section-title-wrapper')) {
+                                    if (child === targetNode) {
+                                        child.classList.remove('collapsed');
+                                    } else {
+                                        child.classList.add('collapsed');
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        }
                         refreshAccordionVisibility();
 
                         const yOffset = -20;
                         const y = targetNode.getBoundingClientRect().top + window.scrollY + yOffset;
                         window.scrollTo({ top: y, behavior: 'smooth' });
+
+                        // 프리뷰 이미지로 이동
+                        const pIdx = targetNode.getAttribute('data-page-index');
+                        if (pIdx !== null) {
+                            const previewContainer = document.getElementById('previewContainer');
+                            const imgs = previewContainer.querySelectorAll('img');
+                            const targetImg = imgs[parseInt(pIdx)];
+                            if (targetImg) {
+                                targetImg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }
+                        }
                     };
                     sidebar.appendChild(btn);
                 }
@@ -1546,6 +1655,7 @@
             div.innerHTML = `<div class="btn-break-insert">이벤트 나누기 삽입</div>`;
             div.onclick = (e) => {
                 e.stopPropagation();
+                saveSnapshot();
                 addPageBreak(div);
             };
             return div;
@@ -1585,9 +1695,7 @@
 
             row.querySelectorAll('input, textarea').forEach(input => {
                 input.addEventListener('input', () => {
-                    if (input.classList.contains('item-name')) {
-                        autoResizeTextarea(input);
-                    }
+                    if (input.tagName === 'TEXTAREA') autoResizeTextarea(input);
                     debouncedGenerateImages();
                 });
             });
@@ -1621,6 +1729,7 @@
         }
 
         function duplicateItemRow(btn) {
+            saveSnapshot();
             const currentRow = btn.closest('.item-row');
             const itemName = currentRow.querySelector('.item-name').value;
             const unit = currentRow.querySelector('.item-unit').value;
@@ -1646,10 +1755,11 @@
             const items = [];
             let nextNode = currentSection.nextElementSibling;
             while (nextNode && nextNode.classList.contains('item-row')) {
-                const itemName = nextNode.querySelector('.item-name').value;
-                const unit = nextNode.querySelector('.item-unit').value;
-                const price = nextNode.querySelector('.item-price').value;
-                items.push({ itemName, unit, price });
+                items.push({
+                    itemName: nextNode.querySelector('.item-name').value,
+                    unit: nextNode.querySelector('.item-unit').value,
+                    price: nextNode.querySelector('.item-price').value
+                });
                 nextNode = nextNode.nextElementSibling;
             }
 
@@ -1805,6 +1915,7 @@
         };
 
         document.getElementById('bgInput').addEventListener('change', function (e) {
+            saveSnapshot();
             const fileLabel = document.getElementById('fileLabel');
             const dropZone = document.getElementById('dropZone');
             if (e.target.files && e.target.files.length > 0) {
@@ -1843,6 +1954,7 @@
 
         document.getElementById('dropZone').addEventListener('drop', function (e) {
             e.preventDefault();
+            saveSnapshot();
             const file = e.dataTransfer.files[0];
             if (!file || !file.type.startsWith('image/')) return;
             const fileLabel = document.getElementById('fileLabel');
@@ -1870,6 +1982,7 @@
             let currentSections = [];
             let currentSection = { title: "", items: [] };
 
+            let pageIdx = 0;
             container.childNodes.forEach(child => {
                 if (child.nodeType !== 1) return;
 
@@ -1879,6 +1992,7 @@
                     }
                     if (currentSections.length > 0) {
                         pages.push({ sections: currentSections });
+                        pageIdx++;
                     }
                     currentSections = [];
                     currentSection = { title: "", items: [] };
@@ -1890,6 +2004,10 @@
                     currentSection.title = child.querySelector('.section-title-input').value.trim();
                     currentSection.titleSize = child.querySelector('.section-title-size').value;
                     currentSection.layout = child.querySelector('.section-title-layout').value;
+
+                    // 해당 섹션이 어느 페이지(이미지)에 속하는지 기록
+                    child.setAttribute('data-page-index', pageIdx);
+
                 } else if (child.classList.contains('item-row')) {
                     const itemName = child.querySelector('.item-name').value.trim();
                     const unit = child.querySelector('.item-unit').value.trim();
@@ -1913,15 +2031,18 @@
 
             const fontsToLoad = [
                 '27px "GmarketSansMedium"',
-                '23px "GmarketSansMedium"',
+                '39px "GmarketSansBold"',
                 '49px "GmarketSansBold"',
-                '27px "Pretendard"',
-                '700 36px "Pretendard"',
-                '800 54px "Pretendard"',
-                '27px "Noto Sans JP"',
-                '27px "Noto Sans SC"',
-                '27px "Noto Sans TC"',
-                '27px "Noto Sans Thai"'
+                '59px "GmarketSansBold"',
+                '25px "Pretendard"',
+                '700 25px "Pretendard"',
+                '800 23px "Pretendard"',
+                '800 48px "Pretendard"',
+                '700 29px "Pretendard"',
+                '25px "Noto Sans JP"',
+                '25px "Noto Sans SC"',
+                '25px "Noto Sans TC"',
+                '25px "Noto Sans Thai"'
             ];
 
             try {
@@ -2022,7 +2143,7 @@
             const tokenMeta = tokens.map(token => {
                 const isNumber = /^[\d.,]+$/.test(token);
                 const text = isNumber ? formatPrice(token) : token;
-                const font = isNumber ? `800 54px ${CONFIG.fonts.main}` : `700 34px ${CONFIG.fonts.main}`;
+                const font = isNumber ? `800 48px ${CONFIG.fonts.main}` : `700 29px ${CONFIG.fonts.main}`;
                 const color = isNumber ? null : 'black';
                 const letterSpacing = isNumber ? "-3px" : "-1px";
                 ctx.font = font;
@@ -2117,43 +2238,55 @@
 
             let totalSectionsHeight = 0;
 
-            sections.forEach((sec, sIdx) => {
-                let totalListHeight = 0;
-                sec.groups.forEach((group, index) => {
+            let canvasMaxPriceWidth = 0;
+            let canvasMaxUnitW = 0;
+
+            sections.forEach(sec => {
+                sec.groups.forEach(group => {
                     group.localMaxPriceWidth = 0;
                     group.rows.forEach(r => {
-                        const { totalWidth } = getPriceTokenMeta(ctx, r.price);
-                        if (totalWidth > group.localMaxPriceWidth) group.localMaxPriceWidth = totalWidth;
+                        // 첫 번째 패스에서 가격 메타데이터 미리 계산하여 캐싱
+                        r.priceMeta = getPriceTokenMeta(ctx, r.price);
+                        if (r.priceMeta.totalWidth > group.localMaxPriceWidth) {
+                            group.localMaxPriceWidth = r.priceMeta.totalWidth;
+                        }
                     });
+                    if (group.localMaxPriceWidth > canvasMaxPriceWidth) canvasMaxPriceWidth = group.localMaxPriceWidth;
 
                     group.maxUnitW = 0;
+                    const unitFont = `800 23px ${CONFIG.fonts.main}`;
                     group.rows.forEach(r => {
                         if (r.unit) {
-                            const unitFontSize = 27;
-                            ctx.font = `800 ${unitFontSize}px ${CONFIG.fonts.main}`;
-                            const w = ctx.measureText(r.unit).width + 30;
+                            ctx.font = unitFont;
+                            const w = ctx.measureText(r.unit).width + 20;
                             if (w > group.maxUnitW) group.maxUnitW = w;
                         }
                     });
+                    if (group.maxUnitW > canvasMaxUnitW) canvasMaxUnitW = group.maxUnitW;
+                });
+            });
 
+            sections.forEach((sec, sIdx) => {
+                let totalListHeight = 0;
+                sec.groups.forEach((group, index) => {
                     ctx.font = `700 27px ${CONFIG.fonts.main}`;
                     ctx.letterSpacing = "-1px";
 
                     if (sec.layout === "vertical") {
-                        group.lines = wrapTextChar(ctx, group.item, 800, 27, false);
+                        group.lines = wrapTextChar(ctx, group.item, 800, 25, false);
                         let textSpan = (group.lines.length - 1) * textLineGap;
                         let priceSpan = (group.rows.length - 1) * groupRowGap;
                         let priceAreaTotalHeight = group.rows.length > 0 ? (priceSpan + 60) : 0;
                         group.heightSpan = textSpan + priceAreaTotalHeight;
                     } else {
-                        const groupUnitRightBoundary = endX - group.localMaxPriceWidth - unitPriceGap;
+                        const globalUnitRightBoundary = endX - canvasMaxPriceWidth - unitPriceGap;
                         let currentMaxTextWidth;
                         if (group.maxUnitW > 0) {
-                            currentMaxTextWidth = (groupUnitRightBoundary - group.maxUnitW) - startX - 15;
+                            currentMaxTextWidth = (globalUnitRightBoundary - group.maxUnitW) - startX - 15;
                         } else {
-                            currentMaxTextWidth = groupUnitRightBoundary - startX - 5;
+                            currentMaxTextWidth = globalUnitRightBoundary - startX - 5;
                         }
-                        group.lines = wrapTextChar(ctx, group.item, currentMaxTextWidth, 27, false);
+                        group.lines = wrapTextChar(ctx, group.item, currentMaxTextWidth, 25, false);
                         let priceSpan = (group.rows.length - 1) * groupRowGap;
                         let textSpan = (group.lines.length - 1) * textLineGap;
                         group.heightSpan = Math.max(priceSpan, textSpan);
@@ -2246,7 +2379,7 @@
                             let isHighlightText = false;
 
                             group.lines.forEach((line, i) => {
-                                let lineWidth = getStyledTextWidth(ctx, line, 27, false);
+                                let lineWidth = getStyledTextWidth(ctx, line, 25, false);
                                 let currentX = 500 - lineWidth / 2;
                                 let chunk = "";
                                 ctx.textAlign = "left";
@@ -2256,7 +2389,7 @@
                                     if (char === '<' || char === '>') {
                                         if (chunk.length > 0) {
                                             const fontWeight = isKorean(chunk) ? 700 : 500;
-                                            ctx.font = `${fontWeight} 27px ${CONFIG.fonts.main}`;
+                                            ctx.font = `${fontWeight} 25px ${CONFIG.fonts.main}`;
                                             ctx.fillStyle = isHighlightText ? themeColor : "black";
                                             ctx.fillText(chunk, currentX, textStartY + (i * textLineGap));
                                             currentX += ctx.measureText(chunk).width;
@@ -2269,7 +2402,7 @@
                                 }
                                 if (chunk.length > 0) {
                                     const fontWeight = isKorean(chunk) ? 700 : 500;
-                                    ctx.font = `${fontWeight} 27px ${CONFIG.fonts.main}`;
+                                    ctx.font = `${fontWeight} 25px ${CONFIG.fonts.main}`;
                                     ctx.fillStyle = isHighlightText ? themeColor : "black";
                                     ctx.fillText(chunk, currentX, textStartY + (i * textLineGap));
                                 }
@@ -2278,27 +2411,24 @@
                             let textSpan = (group.lines.length - 1) * textLineGap;
                             let priceStartY = currentY + textSpan + 60;
 
-                            let groupTotalW = group.maxUnitW + (group.maxUnitW > 0 ? 15 : 0) + group.localMaxPriceWidth;
+                            let groupTotalW = group.maxUnitW + (group.maxUnitW > 0 ? 15 : 0) + canvasMaxPriceWidth;
                             let groupRightX = 500 + groupTotalW / 2;
-                            let groupUnitRightBoundary = groupRightX - group.localMaxPriceWidth - 15;
+                            let globalUnitRightBoundary = groupRightX - canvasMaxPriceWidth - 15;
 
                             group.rows.forEach((row, rowIndex) => {
                                 const rowCenterY = priceStartY + (rowIndex * groupRowGap);
-                                const { tokenMeta, totalWidth: priceWidth } = getPriceTokenMeta(ctx, row.price);
+                                const { tokenMeta, totalWidth: priceWidth } = row.priceMeta;
                                 tokenMeta.forEach(m => { if (m.color === null) m.color = themeColor; });
 
-                                if (group.maxUnitW > 0) {
-                                    if (row.unit) {
-                                        const unitFontSize = 27;
-                                        ctx.font = `800 ${unitFontSize}px ${CONFIG.fonts.main}`;
-                                        ctx.letterSpacing = "0px";
-                                        let unitW = group.maxUnitW;
-                                        const boxX = groupUnitRightBoundary - unitW;
-                                        ctx.fillStyle = themeColor;
-                                        roundRect(ctx, boxX, rowCenterY - 24, unitW, 48, 14);
-                                        ctx.textAlign = "center"; ctx.fillStyle = "white";
-                                        ctx.fillText(row.unit, boxX + unitW / 2, rowCenterY + 2);
-                                    }
+                                if (group.maxUnitW > 0 && row.unit) {
+                                    ctx.font = `800 23px ${CONFIG.fonts.main}`;
+                                    ctx.letterSpacing = "0px";
+                                    const unitW = group.maxUnitW;
+                                    const boxX = globalUnitRightBoundary - unitW;
+                                    ctx.fillStyle = themeColor;
+                                    roundRect(ctx, boxX, rowCenterY - 20, unitW, 40, 10);
+                                    ctx.textAlign = "center"; ctx.fillStyle = "white";
+                                    ctx.fillText(row.unit, boxX + unitW / 2, rowCenterY + 2);
                                 }
 
                                 const baselineY = rowCenterY + 18;
@@ -2333,7 +2463,7 @@
                                     if (char === '<' || char === '>') {
                                         if (chunk.length > 0) {
                                             const fontWeight = isKorean(chunk) ? 700 : 500;
-                                            ctx.font = `${fontWeight} 27px ${CONFIG.fonts.main}`;
+                                            ctx.font = `${fontWeight} 25px ${CONFIG.fonts.main}`;
                                             ctx.fillStyle = isHighlightText ? themeColor : "black";
                                             ctx.fillText(chunk, currentX, textStartY + (i * textLineGap));
                                             currentX += ctx.measureText(chunk).width;
@@ -2347,7 +2477,7 @@
 
                                 if (chunk.length > 0) {
                                     const fontWeight = isKorean(chunk) ? 700 : 500;
-                                    ctx.font = `${fontWeight} 27px ${CONFIG.fonts.main}`;
+                                    ctx.font = `${fontWeight} 25px ${CONFIG.fonts.main}`;
                                     ctx.fillStyle = isHighlightText ? themeColor : "black";
                                     ctx.fillText(chunk, currentX, textStartY + (i * textLineGap));
                                 }
@@ -2357,21 +2487,20 @@
                             group.rows.forEach((row, rowIndex) => {
                                 const rowCenterY = priceStartY + (rowIndex * groupRowGap);
 
-                                const groupUnitRightBoundary = endX - group.localMaxPriceWidth - unitPriceGap;
+                                const globalUnitRightBoundary = endX - canvasMaxPriceWidth - unitPriceGap;
                                 if (row.unit) {
-                                    const unitFontSize = 27;
-                                    ctx.font = `800 ${unitFontSize}px ${CONFIG.fonts.main}`;
+                                    ctx.font = `800 23px ${CONFIG.fonts.main}`;
                                     ctx.letterSpacing = "0px";
                                     const unitW = group.maxUnitW;
-                                    const boxX = groupUnitRightBoundary - unitW;
+                                    const boxX = globalUnitRightBoundary - unitW;
 
                                     ctx.fillStyle = themeColor;
-                                    roundRect(ctx, boxX, rowCenterY - 24, unitW, 48, 14);
+                                    roundRect(ctx, boxX, rowCenterY - 20, unitW, 40, 10);
                                     ctx.textAlign = "center"; ctx.fillStyle = "white";
                                     ctx.fillText(row.unit, boxX + unitW / 2, rowCenterY + 2);
                                 }
 
-                                const { tokenMeta, totalWidth } = getPriceTokenMeta(ctx, row.price);
+                                const { tokenMeta, totalWidth } = row.priceMeta;
                                 tokenMeta.forEach(m => { if (m.color === null) m.color = themeColor; });
 
                                 const baselineY = rowCenterY + 18;
@@ -2459,10 +2588,29 @@
             addItemRow('필러', '1회', '4만');
             addItemRow('필러', '3회', '11만');
 
+            // 입력 필드 변경에 대한 Undo 지원 (포커스 시 이전 값 저장, 블러 시 변경되었으면 스냅샷 저장)
+            ['topTitle', 'topDate', 'botText', 'themeHex', 'themeColor'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('focus', () => {
+                        el._beforeValue = el.value;
+                    });
+                    el.addEventListener('blur', () => {
+                        if (el._beforeValue !== el.value) {
+                            const current = el.value;
+                            el.value = el._beforeValue;
+                            saveSnapshot();
+                            el.value = current;
+                        }
+                    });
+                }
+            });
+
             ['topTitle', 'topDate', 'botText'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) autoResizeTextarea(el);
             });
+            updateRemoteState();
         };
 
         let debounceTimer;
@@ -2484,14 +2632,25 @@
         }
 
         window.addEventListener('keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) {
-                e.preventDefault();
-                generateImages();
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-                if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+            const ctrl = e.ctrlKey || e.metaKey;
+            const isZ = e.code === 'KeyZ' || e.key.toLowerCase() === 'z';
+            const isY = e.code === 'KeyY' || e.key.toLowerCase() === 'y';
+            const shift = e.shiftKey;
+
+            // Undo: Ctrl + Z
+            if (ctrl && isZ && !shift) {
                 e.preventDefault();
                 undo();
+            }
+            // Redo: Ctrl + Shift + Z 또는 Ctrl + Y
+            else if ((ctrl && isZ && shift) || (ctrl && isY)) {
+                e.preventDefault();
+                redo();
+            }
+            // Save: Ctrl + S
+            else if (ctrl && (e.code === 'KeyS' || e.key.toLowerCase() === 's')) {
+                e.preventDefault();
+                generateImages();
             }
         });
 
@@ -2503,15 +2662,30 @@
         });
     </script>
 
-    <div class="scroll-buttons">
+    <div class="floating-remote">
+        <button id="remoteUndo" onclick="undo()" title="실행 취소 (Ctrl+Z)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7v6h6" />
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+            </svg>
+        </button>
+        <button id="remoteRedo" onclick="redo()" title="다시 실행 (Ctrl+Shift+Z)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 7v6h-6" />
+                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+            </svg>
+        </button>
+        <div class="remote-divider"></div>
         <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="맨 위로">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m18 15-6-6-6 6" />
             </svg>
         </button>
         <button onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})" title="맨 아래로">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m6 9 6 6 6-6" />
             </svg>
