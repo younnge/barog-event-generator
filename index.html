@@ -1379,8 +1379,6 @@
         let undoHistory = [];
         let redoHistory = [];
         let lastSelectedItem = null;
-        let lastSnapshotTime = 0;
-        const SNAPSHOT_COOLDOWN = 100; // 밀리초 단위, 너무 잦은 저장 방지
 
         function generateUniqueId(prefix = 'id') {
             return prefix + '-' + Math.random().toString(36).substr(2, 9);
@@ -1607,12 +1605,8 @@
                     else if (data.topTitle && data.topTitle.color) updateColorSync('theme', data.topTitle.color);
 
                     if (data.items) {
-                        // 신규 백업 포맷 대응: 만약 data.items가 또 객체라면(잘못 중첩된 경우) 그 안의 items를 사용
-                        if (!Array.isArray(data.items) && data.items.items) {
-                            restoreSnapshot(data.items);
-                        } else {
-                            restoreSnapshot(data.items);
-                        }
+                        // restoreSnapshot 내부에서 배열/객체 포맷 모두 처리
+                        restoreSnapshot(data.items);
                     } else if (Array.isArray(data)) {
                         // 매우 오래된 포맷 대응
                         restoreSnapshot(data);
@@ -1796,13 +1790,8 @@
                     <span class="bookmark-text">${displayTitle}</span>
                 `;
 
-                const checkbox = btn.querySelector('.bookmark-check');
                 const checkWrapper = btn.querySelector('.custom-check-container');
-
                 checkWrapper.addEventListener('click', (e) => e.stopPropagation());
-                checkbox.addEventListener('change', () => {
-                    // 선택 상태 업데이트 로직 (전체 선택 삭제로 인해 단순화 가능)
-                });
 
                 btn.title = displayTitle;
 
@@ -2076,18 +2065,10 @@
         }
 
         function autoResizeTextarea(el) {
-            // 항목명 입력창이 아닐 경우(상단 제목 등)에도 대응할 수 있도록 기본 로직 유지하되
-            // 한 줄 높이를 38px로 고정하는 로직 적용
             el.style.height = '38px';
             const newHeight = el.scrollHeight;
-
             if (newHeight > 38) {
-                // scrollHeight에 이미 padding이 포함되어 있으므로 그대로 적용
-                // border-box이므로 border 두께(각 1px씩 총 2px)를 고려해야 할 수도 있음
-                // 여기서는 38px을 넘는 경우에만 해당 높이로 확장
-                el.style.height = (newHeight) + 'px';
-            } else {
-                el.style.height = '38px';
+                el.style.height = newHeight + 'px';
             }
         }
 
@@ -2338,6 +2319,7 @@
         }
 
         function handleDragLeave(e) {
+            // drag API 규격상 필수 핸들러 (빈 구현 유지)
         }
 
         function handleDrop(e) {
@@ -3028,18 +3010,44 @@
             [hexInput, colorPicker].forEach(input => {
                 input.addEventListener('input', debouncedGenerateImages);
             });
-            ['topTitle', 'topDate', 'botText'].forEach(elId => {
-                const el = document.getElementById(elId);
+            // 상단 입력 필드 이벤트 통합 (input, paste, focus/blur, 초기 크기 조정)
+            ['topTitle', 'topDate', 'botText'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
                 el.addEventListener('input', () => {
                     autoResizeTextarea(el);
                     debouncedGenerateImages();
-                    handleInputSnapshot(); // 실시간 스냅샷
+                    handleInputSnapshot();
                 });
                 el.addEventListener('paste', () => {
                     setTimeout(saveSnapshot, 0);
                 });
+                el.addEventListener('focus', () => { el._beforeValue = el.value; });
+                el.addEventListener('blur', () => {
+                    if (el._beforeValue !== el.value) {
+                        const current = el.value;
+                        el.value = el._beforeValue;
+                        saveSnapshot();
+                        el.value = current;
+                    }
+                });
+                autoResizeTextarea(el);
             });
 
+            // 테마 색상 입력 Undo 지원
+            ['themeHex', 'themeColor'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('focus', () => { el._beforeValue = el.value; });
+                el.addEventListener('blur', () => {
+                    if (el._beforeValue !== el.value) {
+                        const current = el.value;
+                        el.value = el._beforeValue;
+                        saveSnapshot();
+                        el.value = current;
+                    }
+                });
+            });
 
             addSectionTitle('굿바이 이벤트');
             addItemRow(`<붓기삭제 종아리 슬림패키지>
@@ -3048,29 +3056,6 @@
             addItemRow('보톡스', '', '9만');
             addItemRow('필러', '1회', '4만');
             addItemRow('필러', '3회', '11만');
-
-            // 입력 필드 변경에 대한 Undo 지원 (포커스 시 이전 값 저장, 블러 시 변경되었으면 스냅샷 저장)
-            ['topTitle', 'topDate', 'botText', 'themeHex', 'themeColor'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.addEventListener('focus', () => {
-                        el._beforeValue = el.value;
-                    });
-                    el.addEventListener('blur', () => {
-                        if (el._beforeValue !== el.value) {
-                            const current = el.value;
-                            el.value = el._beforeValue;
-                            saveSnapshot();
-                            el.value = current;
-                        }
-                    });
-                }
-            });
-
-            ['topTitle', 'topDate', 'botText'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) autoResizeTextarea(el);
-            });
             updateRemoteState();
             initSelection();
         };
@@ -3113,6 +3098,45 @@
             else if (ctrl && (e.code === 'KeyS' || e.key.toLowerCase() === 's')) {
                 e.preventDefault();
                 generateImages();
+            }
+            // Delete: 선택된 항목 삭제
+            else if (e.key === 'Delete' || (e.key === 'Backspace' && !ctrl)) {
+                // 입력 필드에 포커스 중이면 무시
+                const activeTag = document.activeElement?.tagName;
+                if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+
+                const selectedItems = document.querySelectorAll('#itemsContainer .item-selected');
+                if (selectedItems.length === 0) return;
+
+                e.preventDefault();
+                saveSnapshot();
+
+                // 삭제 대상 수집 (섹션 제목의 하위 항목 포함)
+                const toRemove = new Set();
+                selectedItems.forEach(item => {
+                    toRemove.add(item);
+                    // 섹션 제목인 경우 하위 item-row도 함께 삭제
+                    if (item.classList.contains('section-title-wrapper')) {
+                        // 앞의 인서터도 삭제
+                        const prev = item.previousElementSibling;
+                        if (prev && prev.classList.contains('hover-break-inserter')) {
+                            toRemove.add(prev);
+                        }
+                        let next = item.nextElementSibling;
+                        while (next && next.classList.contains('item-row')) {
+                            toRemove.add(next);
+                            next = next.nextElementSibling;
+                        }
+                    }
+                });
+
+                toRemove.forEach(node => {
+                    if (lastSelectedItem === node) lastSelectedItem = null;
+                    node.remove();
+                });
+
+                refreshAccordionVisibility();
+                debouncedGenerateImages();
             }
         });
 
