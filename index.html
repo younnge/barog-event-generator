@@ -7,8 +7,13 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <title>바로그 월이벤트 생성기</title>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- 외부 라이브러리 (SRI: Subresource Integrity로 CDN 변조 방지) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+        integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"
+        integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
@@ -1147,11 +1152,7 @@
         }
 
         .floating-remote button:hover:not(:disabled) {
-            background: var(--primary);
-            color: white;
             transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 8px 20px rgba(0, 100, 255, 0.2);
-            border-color: var(--primary);
         }
 
         .floating-remote button:active:not(:disabled) {
@@ -1161,7 +1162,110 @@
         .floating-remote button:disabled {
             opacity: 0.3;
             cursor: not-allowed;
-            background: #f2f4f6;
+            background: #f2f4f6 !important;
+            border-color: #E5E8EB !important;
+            box-shadow: none !important;
+        }
+
+        /* Remote: Undo / Redo 버튼 */
+        .floating-remote .rbtn-undo {
+            background: #F2F4F6;
+            color: #4E5968;
+            border-color: #E5E8EB;
+        }
+
+        .floating-remote .rbtn-undo:hover:not(:disabled) {
+            background: #E5E8EB;
+            color: #191F28;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+            border-color: #d1d5db;
+        }
+
+        /* Remote: 선택 다운로드 버튼 */
+        .floating-remote .rbtn-download-selected {
+            background: #ffffff;
+            color: #333D4B;
+            border: 2px solid #333D4B;
+        }
+
+        .floating-remote .rbtn-download-selected:hover:not(:disabled) {
+            background: #F9FAFB;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            border-color: #191F28;
+            color: #191F28;
+        }
+
+        /* Remote: 전체 다운로드 버튼 */
+        .floating-remote .rbtn-download-all {
+            background: #333D4B;
+            color: white;
+            border-color: #333D4B;
+        }
+
+        .floating-remote .rbtn-download-all:hover:not(:disabled) {
+            background: #191F28;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            border-color: #191F28;
+            color: white;
+        }
+
+        /* Remote: 내용 백업 (저장하기) 버튼 */
+        .floating-remote .rbtn-save {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0, 100, 255, 0.2);
+        }
+
+        .floating-remote .rbtn-save:hover:not(:disabled) {
+            background: var(--primary-dark);
+            box-shadow: 0 8px 20px rgba(0, 100, 255, 0.3);
+            border-color: var(--primary-dark);
+            color: white;
+        }
+
+        /* Remote: 저장 버튼 - 미저장 상태 */
+        .floating-remote .rbtn-save.rbtn-unsaved {
+            background: #FEF2F2 !important;
+            color: #DC2626 !important;
+            border-color: #FCA5A5 !important;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+            animation: pulse-border 1.8s ease-in-out infinite;
+        }
+
+        .floating-remote .rbtn-save.rbtn-unsaved:hover:not(:disabled) {
+            background: #FEE2E2 !important;
+            border-color: #DC2626 !important;
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+            color: #DC2626 !important;
+        }
+
+        /* Remote: 백업 불러오기 버튼 */
+        .floating-remote .rbtn-load {
+            background: white;
+            color: #4E5968;
+            border: 1px solid #E5E8EB;
+        }
+
+        .floating-remote .rbtn-load:hover:not(:disabled) {
+            background: #F9FAFB;
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 8px 16px rgba(0, 100, 255, 0.1);
+        }
+
+        /* Remote: 스크롤 버튼 */
+        .floating-remote .rbtn-scroll {
+            background: white;
+            color: #4E5968;
+            border: 1px solid #E5E8EB;
+        }
+
+        .floating-remote .rbtn-scroll:hover:not(:disabled) {
+            background: #F9FAFB;
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 8px 16px rgba(0, 100, 255, 0.1);
         }
 
         .remote-divider {
@@ -1338,7 +1442,7 @@
                         <path
                             d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
                         <rect width="7" height="8" x="8" y="3" rx="1" />
-                        <path d="M7 21v-7a1 1 0 0 1 1-1h8a1 1 0 0 1 1-1v7" />
+                        <path d="M7 21v-7a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v7" />
                     </svg>
                     내용 백업 (저장하기)
                 </button>
@@ -1372,6 +1476,9 @@
     </div>
 
     <script>
+        /* ============================================================
+         *  전역 상태 및 상수
+         * ============================================================ */
         let generatedImagesUrls = [];
         let cachedBgImg = null;
         let isBackedUp = true;
@@ -1379,6 +1486,24 @@
         let undoHistory = [];
         let redoHistory = [];
         let lastSelectedItem = null;
+
+        // localStorage 자동 저장 키
+        const LS_KEY = 'barog_event_autosave';
+        const LS_BG_KEY = 'barog_event_bg';
+
+        /* ============================================================
+         *  유틸리티 함수
+         * ============================================================ */
+
+        /**
+         * HTML 특수문자 이스케이프 (XSS 방지)
+         * innerHTML에 사용자 입력을 삽입할 때 반드시 사용
+         */
+        function escapeHtml(str) {
+            if (!str) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(str).replace(/[&<>"']/g, c => map[c]);
+        }
 
         function generateUniqueId(prefix = 'id') {
             return prefix + '-' + Math.random().toString(36).substr(2, 9);
@@ -1550,6 +1675,11 @@
                     btn.classList.add('btn-unsaved');
                     btn.title = '백업되지 않은 변경 사항이 있습니다';
                 }
+                const remoteBtn = document.getElementById('remoteSaveBtn');
+                if (remoteBtn) {
+                    remoteBtn.classList.add('rbtn-unsaved');
+                    remoteBtn.title = '백업되지 않은 변경 사항이 있습니다';
+                }
             }
         }
 
@@ -1559,6 +1689,11 @@
             if (btn) {
                 btn.classList.remove('btn-unsaved');
                 btn.title = '';
+            }
+            const remoteBtn = document.getElementById('remoteSaveBtn');
+            if (remoteBtn) {
+                remoteBtn.classList.remove('rbtn-unsaved');
+                remoteBtn.title = '파일 백업 (저장)';
             }
         }
 
@@ -1692,7 +1827,7 @@
                 </div>
                 <div style="display:flex; flex-direction:column; gap:4px;">
                     <span style="font-size: 11px; font-weight: 800; color: var(--primary); margin-left: 4px;">제목</span>
-                    <textarea class="btn-input section-title-input" placeholder="중앙 배너 제목 입력 (예: 보톡스 이벤트)">${titleValue}</textarea>
+                    <textarea class="btn-input section-title-input" placeholder="중앙 배너 제목 입력 (예: 보톡스 이벤트)">${escapeHtml(titleValue)}</textarea>
                 </div>
                 <div style="display:flex; flex-direction:column; gap:4px;">
                     <span style="font-size: 11px; font-weight: 800; color: var(--primary); margin-left: 4px;">크기</span>
@@ -1784,16 +1919,16 @@
 
                 btn.innerHTML = `
                     <label class="custom-check-container">
-                        <input type="checkbox" class="bookmark-check" data-target-id="${undoId}" ${checkedIds.has(undoId) ? 'checked' : ''}>
+                        <input type="checkbox" class="bookmark-check" data-target-id="${escapeHtml(undoId)}" ${checkedIds.has(undoId) ? 'checked' : ''}>
                         <span class="checkmark"></span>
                     </label>
-                    <span class="bookmark-text">${displayTitle}</span>
+                    <span class="bookmark-text">${escapeHtml(displayTitle)}</span>
                 `;
 
                 const checkWrapper = btn.querySelector('.custom-check-container');
                 checkWrapper.addEventListener('click', (e) => e.stopPropagation());
 
-                btn.title = displayTitle;
+                btn.title = displayTitle; // title은 텍스트 속성이므로 이스케이프 불필요
 
                 const targetNode = node;
                 btn.onclick = () => {
@@ -2016,9 +2151,9 @@
             row.setAttribute('data-undo-id', undoId || generateUniqueId('item'));
             row.innerHTML = `
                 <div class="drag-handle">${DRAG_HANDLE_SVG}</div>
-                <textarea class="btn-input item-name" placeholder="항목명 (예: <리쥬란 2cc>)">${itemName}</textarea>
-                <input type="text" class="btn-input btn-input-unit item-unit" placeholder="단위" value="${unit}">
-                <input type="text" class="btn-input btn-input-price item-price" placeholder="금액" value="${price}">
+                <textarea class="btn-input item-name" placeholder="항목명 (예: <리쥬란 2cc>)">${escapeHtml(itemName)}</textarea>
+                <input type="text" class="btn-input btn-input-unit item-unit" placeholder="단위" value="${escapeHtml(unit)}">
+                <input type="text" class="btn-input btn-input-price item-price" placeholder="금액" value="${escapeHtml(price)}">
                 <div class="row-actions" style="display:flex; flex-direction:row; gap:4px;">
                     <button class="btn-copy" onclick="duplicateItemRow(this)" title="복제">${COPY_SVG_14}</button>
                     <button class="btn-remove" onclick="saveSnapshot(); if(lastSelectedItem === this.parentElement.parentElement) lastSelectedItem = null; this.parentElement.parentElement.remove(); debouncedGenerateImages();" title="삭제">${CLOSE_SVG_14}</button>
@@ -2534,7 +2669,7 @@
             if (generatedImagesUrls.length === 0) return;
 
             if (!isBackedUp) {
-                const ok = confirm("⚠️ 아직 백업되지 않은 변경 사항이 있습니다.\n\n[확인] 다운로드를 진행합니다.\n[취소] → [파일 백업] 버튼을 눈러 데이터를 먼저 저장하세요.");
+                const ok = confirm("⚠️ 아직 백업되지 않은 변경 사항이 있습니다.\n\n[확인] 다운로드를 진행합니다.\n[취소] → [파일 백업] 버튼을 눌러 데이터를 먼저 저장하세요.");
                 if (!ok) return;
             }
 
@@ -2985,7 +3120,11 @@
             return canvas.toDataURL('image/jpeg', 0.97);
         }
 
+        /* ============================================================
+         *  페이지 초기화
+         * ============================================================ */
         window.onload = () => {
+            // --- 테마 색상 컨트롤 초기화 ---
             const hexInput = document.getElementById('themeHex');
             const colorPicker = document.getElementById('themeColor');
             const swatch = document.getElementById('themeSwatch');
@@ -3010,7 +3149,8 @@
             [hexInput, colorPicker].forEach(input => {
                 input.addEventListener('input', debouncedGenerateImages);
             });
-            // 상단 입력 필드 이벤트 통합 (input, paste, focus/blur, 초기 크기 조정)
+
+            // --- 상단 입력 필드 이벤트 통합 (input, paste, focus/blur, 초기 크기 조정) ---
             ['topTitle', 'topDate', 'botText'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -3034,7 +3174,7 @@
                 autoResizeTextarea(el);
             });
 
-            // 테마 색상 입력 Undo 지원
+            // --- 테마 색상 입력 Undo 지원 ---
             ['themeHex', 'themeColor'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -3049,24 +3189,127 @@
                 });
             });
 
-            addSectionTitle('굿바이 이벤트');
-            addItemRow(`<붓기삭제 종아리 슬림패키지>
+            // --- 데이터 초기화: localStorage 자동 복구 또는 기본 샘플 데이터 ---
+            const restored = restoreFromLocalStorage();
+            if (!restored) {
+                // localStorage에 저장된 데이터가 없을 경우 기본 샘플 로드
+                addSectionTitle('굿바이 이벤트');
+                addItemRow(`<붓기삭제 종아리 슬림패키지>
 종아리 보톡스 200u + 슬림주사 100cc
 +지방타파레이저 1000샷`, '', '19만9천');
-            addItemRow('보톡스', '', '9만');
-            addItemRow('필러', '1회', '4만');
-            addItemRow('필러', '3회', '11만');
+                addItemRow('보톡스', '', '9만');
+                addItemRow('필러', '1회', '4만');
+                addItemRow('필러', '3회', '11만');
+            }
+
             updateRemoteState();
             initSelection();
         };
 
+        /* ============================================================
+         *  디바운스 이미지 생성 + localStorage 자동 저장
+         * ============================================================ */
         let debounceTimer;
+        let autoSaveTimer;
+
         function debouncedGenerateImages() {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 generateImages();
             }, 300);
             markUnsaved();
+            scheduleAutoSave();
+        }
+
+        /**
+         * localStorage 자동 저장 (2초 디바운스)
+         * 페이지 새로고침/실수로 닫아도 데이터 복구 가능
+         */
+        function scheduleAutoSave() {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                try {
+                    const snapshot = getSnapshot();
+                    localStorage.setItem(LS_KEY, JSON.stringify(snapshot));
+                    // 배경 이미지는 용량이 크므로 별도 키에 저장 (5MB 제한 주의)
+                    if (cachedBgImg && cachedBgImg.src && cachedBgImg.src.startsWith('data:')) {
+                        try {
+                            localStorage.setItem(LS_BG_KEY, cachedBgImg.src);
+                        } catch (quotaErr) {
+                            // 용량 초과 시 배경 이미지만 저장 실패 (무시)
+                            localStorage.removeItem(LS_BG_KEY);
+                        }
+                    }
+                } catch (e) {
+                    // localStorage 쓰기 실패 시 조용히 무시 (시크릿 모드 등)
+                    console.warn('자동 저장 실패:', e.message);
+                }
+            }, 2000);
+        }
+
+        /**
+         * localStorage에서 자동 저장된 데이터 복구
+         * @returns {boolean} 복구 성공 여부
+         */
+        function restoreFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem(LS_KEY);
+                if (!saved) return false;
+
+                const data = JSON.parse(saved);
+                if (!data || !data.items || data.items.length === 0) return false;
+
+                // 데이터 복원
+                if (data.hasOwnProperty('topTitle')) document.getElementById('topTitle').value = data.topTitle;
+                if (data.hasOwnProperty('topDate')) document.getElementById('topDate').value = data.topDate;
+                if (data.hasOwnProperty('botText')) document.getElementById('botText').value = data.botText;
+                if (data.themeColor) updateColorSync('theme', data.themeColor);
+
+                const container = document.getElementById('itemsContainer');
+                container.innerHTML = '';
+                data.items.forEach(item => {
+                    switch (item.type) {
+                        case 'item': addItemRow(item.itemName, item.unit, item.price, item.id); break;
+                        case 'sectionTitle': addSectionTitle(item.value, item.size, item.layout, item.collapsed, item.id); break;
+                        case 'pageBreak': addPageBreak(null, item.id); break;
+                    }
+                });
+
+                // 배경 이미지 복구
+                const bgData = localStorage.getItem(LS_BG_KEY);
+                if (bgData) {
+                    const img = new Image();
+                    img.src = bgData;
+                    img.onload = () => {
+                        cachedBgImg = img;
+                        const fileLabel = document.getElementById('fileLabel');
+                        const dropZone = document.getElementById('dropZone');
+                        fileLabel.textContent = '자동 저장에서 복원된 배경 이미지';
+                        dropZone.classList.add('file-attached');
+                        debouncedGenerateImages();
+                    };
+                }
+
+                // 텍스트 영역 크기 재조정
+                ['topTitle', 'topDate', 'botText'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) autoResizeTextarea(el);
+                });
+                refreshAccordionVisibility();
+
+                return true;
+            } catch (e) {
+                console.warn('자동 저장 복구 실패:', e.message);
+                return false;
+            }
+        }
+
+        /** localStorage 자동 저장 데이터 삭제 */
+        function clearAutoSave() {
+            try {
+                localStorage.removeItem(LS_KEY);
+                localStorage.removeItem(LS_BG_KEY);
+            } catch (e) { /* 무시 */ }
         }
 
         function updateColorSync(prefix, color) {
@@ -3149,14 +3392,14 @@
     </script>
 
     <div class="floating-remote">
-        <button id="remoteUndo" onclick="undo()" title="실행 취소 (Ctrl+Z)">
+        <button class="rbtn-undo" id="remoteUndo" onclick="undo()" title="실행 취소 (Ctrl+Z)">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 7v6h6" />
                 <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
             </svg>
         </button>
-        <button id="remoteRedo" onclick="redo()" title="다시 실행 (Ctrl+Shift+Z)">
+        <button class="rbtn-undo" id="remoteRedo" onclick="redo()" title="다시 실행 (Ctrl+Shift+Z)">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 7v6h-6" />
@@ -3165,7 +3408,7 @@
         </button>
         <div class="remote-divider"></div>
 
-        <button onclick="downloadSelectedImages()" title="선택 항목 다운로드">
+        <button class="rbtn-download-selected" onclick="downloadSelectedImages()" title="선택 항목 다운로드">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
@@ -3173,7 +3416,7 @@
                 <rect x="8" y="2" width="8" height="4" rx="1" />
             </svg>
         </button>
-        <button onclick="downloadAllImages()" title="전체 다운로드">
+        <button class="rbtn-download-all" onclick="downloadAllImages()" title="전체 다운로드">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -3183,7 +3426,7 @@
         </button>
         <div class="remote-divider"></div>
 
-        <button onclick="saveProject()" title="파일 백업 (저장)">
+        <button class="rbtn-save" id="remoteSaveBtn" onclick="saveProject()" title="파일 백업 (저장)">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path
@@ -3192,7 +3435,7 @@
                 <path d="M7 3v4a1 1 0 0 0 1 1h7" />
             </svg>
         </button>
-        <button onclick="document.getElementById('projectInput').click()" title="백업 불러오기">
+        <button class="rbtn-load" onclick="document.getElementById('projectInput').click()" title="백업 불러오기">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path
@@ -3203,13 +3446,14 @@
         </button>
         <div class="remote-divider"></div>
 
-        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="맨 위로">
+        <button class="rbtn-scroll" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="맨 위로">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m18 15-6-6-6 6" />
             </svg>
         </button>
-        <button onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})" title="맨 아래로">
+        <button class="rbtn-scroll" onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})"
+            title="맨 아래로">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="m6 9 6 6 6-6" />
