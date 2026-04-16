@@ -574,7 +574,6 @@
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             border: 1px solid #E5E8EB;
             white-space: normal;
-            word-break: keep-all;
             overflow: visible;
             max-width: 150px;
             width: 150px;
@@ -1245,6 +1244,80 @@
             user-select: none;
             -webkit-user-select: none;
         }
+
+        /* 의료법 위반 경고 스타일 */
+        .violation-input {
+            border: 2px solid #e11d48 !important;
+            box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.1) !important;
+        }
+
+        .violation-tooltip {
+            position: absolute;
+            z-index: 1000;
+            background: #e11d48;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(225, 29, 72, 0.25);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            pointer-events: auto;
+            animation: tooltipFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes tooltipFadeIn {
+            from { opacity: 0; transform: translateY(5px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .violation-tooltip::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 20px;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 6px solid #e11d48;
+        }
+
+        /* 깜빡임 방지를 위한 마우스 이동 다리(Bridge) */
+        .violation-tooltip::before {
+            content: '';
+            position: absolute;
+            top: -12px;
+            left: 0;
+            width: 100%;
+            height: 12px;
+            background: transparent;
+        }
+
+        /* 툴팁 활성화 시 부모 레이어 우선순위 및 가두기 해제 */
+        .has-active-tooltip {
+            z-index: 100 !important;
+            position: relative !important;
+            overflow: visible !important;
+        }
+
+        .fix-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 800;
+        }
+
+        .fix-btn:hover {
+            background: white;
+            color: #e11d48;
+        }
     </style>
 </head>
 
@@ -1502,6 +1575,73 @@
         let cachedBgImg = null;
         let isBackedUp = true;
 
+        /* ============================================================
+         * 의료법 위반 대응 사전 (BANNED_WORDS)
+         * ============================================================ */
+        const BANNED_WORDS = {
+            // 치환 가능 단어 (Mapping)
+            '신데렐라주사': '티옥트산주사',
+            '백옥주사': '글루타치온주사',
+            '마늘주사': '알리마주사',
+            '아기주사': '성장인자주사',
+            '연어주사': 'PDRN주사',
+            '감초주사': '히시파겐씨주사',
+            '샤넬주사': '필로르가주사',
+            '줄기세포': '피부재생관리',
+            '엑소좀': '피부재생관리',
+            '에토좀': '피부재생관리',
+            'ASCE': '피부재생관리',
+            'TA': '염증주사',
+            '1+1': '1회 가격에 2회 시술',
+            '2+1': '2회 가격에 3회 시술',
+            '프리미엄': '시그니처',
+            '통증없는': '통증줄인',
+            '내성없는': '내성줄인',
+            '무제한': '대용량',
+            '다이어트': '비만치료',
+            's/v': '혜택',
+            '서비스': '혜택',
+            '증정': '포함',
+
+            // 사용 불가 단어 (Warning Only)
+            '선착순': null,
+            '기간제한 없음': null,
+            '실비': null,
+            '즉각효과': null,
+            '명품': null,
+            '무너지지 않는': null,
+            'Free': null,
+
+            // AI 자동 추가: 허위/과장 광고 소지 키워드
+            '최초': null,
+            '100%': null,
+            '부작용 제로': null,
+            '영구적': null,
+            '완치': null,
+            '최고': null,
+            '유일': null,
+            '특허': null,
+            '국내 유일': null,
+            '부작용 없음': null,
+            '전무': null,
+            '완전 제거': null,
+            '즉시 해결': null,
+            '강력 추천': null,
+            '세계 1위': null,
+            '부작용 걱정 없는': null,
+            '확실한 보장': null,
+            
+            // 추가 보편 키워드
+            '최적': null,
+            '완벽': null,
+            '첨단': null,
+            '획기적': null,
+            '비교불가': null
+        };
+
+        // 예외 단어 (검사 제외)
+        const EXCEPTION_WORDS = ['태반주사', '엑토좀PTT'];
+
         // 원본과 동일하게 500으로 원복
         const MAX_UNDO = 500;
 
@@ -1523,6 +1663,136 @@
 
         function generateUniqueId(prefix = 'id') {
             return prefix + '-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        /* ============================================================
+         * 의료법 위반 실시간 감지 로직
+         * ============================================================ */
+        function checkMedicalLaw(text) {
+            if (!text) return [];
+            const violations = [];
+            
+            // 예외 단어 처리: 검사 전 임시 마스킹 (간단한 구현을 위해 순차 검사 시 체크)
+            Object.keys(BANNED_WORDS).forEach(banned => {
+                if (EXCEPTION_WORDS.some(ex => ex.includes(banned) || banned.includes(ex))) {
+                    // 예외 단어와 겹치는 경우 정교한 처리가 필요하나, 
+                    // 요구사항에 따라 '태반주사', '엑토좀PTT'는 제외
+                }
+                
+                if (text.includes(banned)) {
+                    // 해당 금지어가 예외 단어의 일부인지 확인
+                    let isException = false;
+                    EXCEPTION_WORDS.forEach(ex => {
+                        const regex = new RegExp(ex, 'g');
+                        let match;
+                        while ((match = regex.exec(text)) !== null) {
+                            const start = match.index;
+                            const end = start + ex.length;
+                            const bannedIdx = text.indexOf(banned);
+                            if (bannedIdx >= start && bannedIdx < end) {
+                                isException = true;
+                            }
+                        }
+                    });
+
+                    if (!isException) {
+                        violations.push({
+                            word: banned,
+                            replacement: BANNED_WORDS[banned]
+                        });
+                    }
+                }
+            });
+            return violations;
+        }
+
+        function updateViolationUI(el) {
+            const text = el.value;
+            const violations = checkMedicalLaw(text);
+            const parent = el.closest('.item-row, .section-title-wrapper, .form-section') || el.parentElement;
+            
+            const currentViolationWord = violations.length > 0 ? violations[0].word : '';
+            
+            // 위반 사항이 없으면 즉시 정리
+            if (violations.length === 0) {
+                el.classList.remove('violation-input');
+                el.removeAttribute('data-last-violation');
+                const oldTooltip = parent.querySelector('.violation-tooltip');
+                if (oldTooltip) oldTooltip.remove();
+                parent.classList.remove('has-active-tooltip');
+                return;
+            }
+
+            // 동일 위반 시 재생성 방지
+            if (el.getAttribute('data-last-violation') === currentViolationWord && parent.querySelector('.violation-tooltip')) {
+                return; 
+            }
+            
+            // 기존 제거 및 클래스 추가
+            const oldTooltip = parent.querySelector('.violation-tooltip');
+            if (oldTooltip) oldTooltip.remove();
+            parent.classList.add('has-active-tooltip');
+
+            el.classList.add('violation-input');
+            el.setAttribute('data-last-violation', currentViolationWord);
+            
+            const violation = violations[0];
+            const tooltip = document.createElement('div');
+            tooltip.className = 'violation-tooltip';
+            
+            let content = `⚠️ 의료법 위반 소지 단어: '${violation.word}'`;
+            tooltip.innerHTML = `<span>${content}</span>`;
+
+            if (violation.replacement) {
+                const btn = document.createElement('button');
+                btn.className = 'fix-btn';
+                btn.innerHTML = `✨ '${violation.replacement}'로 수정하기`;
+                btn.onmousedown = (e) => e.preventDefault(); 
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    el.value = el.value.replace(new RegExp(violation.word, 'g'), violation.replacement);
+                    el.removeAttribute('data-last-violation');
+                    updateViolationUI(el);
+                    saveSnapshot();
+                    debouncedGenerateImages();
+                };
+                tooltip.appendChild(btn);
+            }
+
+            // Flickering 방지 타이머 핸들링 (요소별 분리)
+            const startHideTimer = () => {
+                clearTimeout(el._tooltipHideTimer);
+                el._tooltipHideTimer = setTimeout(() => {
+                    tooltip.remove();
+                    parent.classList.remove('has-active-tooltip');
+                    el.removeAttribute('data-last-violation');
+                }, 200);
+            };
+
+            tooltip.addEventListener('mouseenter', () => clearTimeout(el._tooltipHideTimer));
+            tooltip.addEventListener('mouseleave', startHideTimer);
+
+            // 기존 핸들러를 덮어쓰지 않도록 addEventListener 사용
+            // 중복 등록 방지: 이전 리스너 참조를 요소에 저장
+            if (el._violationMouseLeave) el.removeEventListener('mouseleave', el._violationMouseLeave);
+            if (el._violationMouseEnter) el.removeEventListener('mouseenter', el._violationMouseEnter);
+            if (el._violationBlur) el.removeEventListener('blur', el._violationBlur);
+            el._violationMouseLeave = startHideTimer;
+            el._violationMouseEnter = () => clearTimeout(el._tooltipHideTimer);
+            el._violationBlur = startHideTimer;
+            el.addEventListener('mouseleave', el._violationMouseLeave);
+            el.addEventListener('mouseenter', el._violationMouseEnter);
+            el.addEventListener('blur', el._violationBlur);
+
+            parent.appendChild(tooltip);
+            
+            // 위치 보정
+            tooltip.style.top = (el.offsetTop + el.offsetHeight + 6) + 'px';
+            tooltip.style.left = el.offsetLeft + 'px';
+            if (el.classList.contains('item-name')) {
+                tooltip.style.left = (el.offsetLeft + 10) + 'px';
+            }
         }
 
         function getSnapshot() {
@@ -1618,8 +1888,13 @@
 
             ['topTitle', 'topDate', 'botText'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) autoResizeTextarea(el);
+                if (el) {
+                    autoResizeTextarea(el);
+                    updateViolationUI(el);
+                }
             });
+            // 아이템 항목들에 대해서도 검사 수행
+            document.querySelectorAll('.item-name').forEach(el => updateViolationUI(el));
             refreshAccordionVisibility();
             updateRemoteState();
 
@@ -2678,11 +2953,17 @@
             ['topTitle', 'topDate', 'botText'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
-                    el.addEventListener('input', () => { autoResizeTextarea(el); debouncedGenerateImages(); handleInputSnapshot(); });
-                    el.addEventListener('paste', () => setTimeout(saveSnapshot, 0));
+                    el.addEventListener('input', () => { 
+                        autoResizeTextarea(el); 
+                        updateViolationUI(el);
+                        debouncedGenerateImages(); 
+                        handleInputSnapshot(); 
+                    });
+                    el.addEventListener('paste', () => setTimeout(() => { updateViolationUI(el); saveSnapshot(); }, 0));
                     el.addEventListener('focus', () => { el._beforeValue = el.value; });
                     el.addEventListener('blur', () => { if (el._beforeValue !== el.value) { const current = el.value; el.value = el._beforeValue; saveSnapshot(); el.value = current; } });
                     autoResizeTextarea(el);
+                    updateViolationUI(el); // 초기 검사
                 }
             });
 
@@ -2699,15 +2980,23 @@
             container.addEventListener('input', (e) => {
                 if (e.target.matches('.btn-input')) {
                     if (e.target.tagName === 'TEXTAREA') autoResizeTextarea(e.target);
-                    if (e.target.classList.contains('section-title-input')) updateBookmarkSidebar();
+                    if (e.target.classList.contains('section-title-input')) {
+                        updateBookmarkSidebar();
+                        updateViolationUI(e.target);
+                    }
+                    if (e.target.classList.contains('item-name')) updateViolationUI(e.target);
                     debouncedGenerateImages();
                     handleInputSnapshot();
                 }
             });
             container.addEventListener('change', (e) => { if (e.target.matches('select.btn-input')) debouncedGenerateImages(); });
-            container.addEventListener('paste', (e) => { if (e.target.matches('.btn-input')) setTimeout(saveSnapshot, 0); });
-            container.addEventListener('focusin', (e) => { if (e.target.matches('.btn-input')) e.target._beforeValue = e.target.value; });
-            container.addEventListener('focusout', (e) => { if (e.target.matches('.btn-input') && e.target._beforeValue !== e.target.value) saveSnapshot(); });
+            container.addEventListener('paste', (e) => { if (e.target.matches('.btn-input')) setTimeout(() => { if (e.target.classList.contains('item-name') || e.target.classList.contains('section-title-input')) updateViolationUI(e.target); saveSnapshot(); }, 0); });
+            container.addEventListener('focusin', (e) => { if (e.target.matches('.btn-input')) { e.target._beforeValue = e.target.value; updateViolationUI(e.target); } });
+            container.addEventListener('focusout', (e) => { 
+                if (e.target.matches('.btn-input')) {
+                    if (e.target._beforeValue !== e.target.value) saveSnapshot();
+                }
+            });
 
             // 원본의 기본 초기 데이터 복구
             if (!restoreFromLocalStorage()) {
@@ -2757,7 +3046,7 @@
                 data.items.forEach(item => {
                     switch (item.type) {
                         case 'item': addItemRow(item.itemName, item.unit, item.price, item.id); break;
-                        case 'sectionTitle': addSectionTitle(item.value, item.size, item.layout, item.collapsed, item.id); break;
+                        case 'sectionTitle': addSectionTitle(item.value, item.size, item.layout, item.collapsed, item.id, item.bodySize); break;
                         case 'pageBreak': addPageBreak(null, item.id); break;
                     }
                 });
@@ -2768,7 +3057,17 @@
                     img.onload = () => { cachedBgImg = img; document.getElementById('fileLabel').textContent = '자동 저장에서 복원된 배경 이미지'; document.getElementById('dropZone').classList.add('file-attached'); debouncedGenerateImages(); };
                 }
 
-                ['topTitle', 'topDate', 'botText'].forEach(id => { const el = document.getElementById(id); if (el) autoResizeTextarea(el); });
+                ['topTitle', 'topDate', 'botText'].forEach(id => { 
+                    const el = document.getElementById(id); 
+                    if (el) {
+                        autoResizeTextarea(el);
+                        updateViolationUI(el);
+                    }
+                });
+                
+                // 로드된 아이템들에 대해 위반 검사
+                document.querySelectorAll('.item-name, .section-title-input').forEach(el => updateViolationUI(el));
+
                 refreshAccordionVisibility(); return true;
             } catch (e) { return false; }
         }
