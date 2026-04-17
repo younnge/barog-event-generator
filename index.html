@@ -1270,8 +1270,15 @@
         }
 
         @keyframes tooltipFadeIn {
-            from { opacity: 0; transform: translateY(5px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+            from {
+                opacity: 0;
+                transform: translateY(5px) scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .violation-tooltip::after {
@@ -1630,7 +1637,7 @@
             '세계 1위': null,
             '부작용 걱정 없는': null,
             '확실한 보장': null,
-            
+
             // 추가 보편 키워드
             '최적': null,
             '완벽': null,
@@ -1649,8 +1656,9 @@
         let redoHistory = [];
         let lastSelectedItem = null;
 
-        const LS_KEY = 'barog_event_autosave';
-        const LS_BG_KEY = 'barog_event_bg';
+        const SS_KEY = 'eventData';
+        const SS_BOOKMARK_KEY = 'bookmarkState';
+        const SS_BG_KEY = 'bgImage';
 
         /* ============================================================
          * 유틸리티 함수
@@ -1671,14 +1679,14 @@
         function checkMedicalLaw(text) {
             if (!text) return [];
             const violations = [];
-            
+
             // 예외 단어 처리: 검사 전 임시 마스킹 (간단한 구현을 위해 순차 검사 시 체크)
             Object.keys(BANNED_WORDS).forEach(banned => {
                 if (EXCEPTION_WORDS.some(ex => ex.includes(banned) || banned.includes(ex))) {
                     // 예외 단어와 겹치는 경우 정교한 처리가 필요하나, 
                     // 요구사항에 따라 '태반주사', '엑토좀PTT'는 제외
                 }
-                
+
                 if (text.includes(banned)) {
                     // 해당 금지어가 예외 단어의 일부인지 확인
                     let isException = false;
@@ -1710,9 +1718,9 @@
             const text = el.value;
             const violations = checkMedicalLaw(text);
             const parent = el.closest('.item-row, .section-title-wrapper, .form-section') || el.parentElement;
-            
+
             const currentViolationWord = violations.length > 0 ? violations[0].word : '';
-            
+
             // 위반 사항이 없으면 즉시 정리
             if (violations.length === 0) {
                 el.classList.remove('violation-input');
@@ -1725,9 +1733,9 @@
 
             // 동일 위반 시 재생성 방지
             if (el.getAttribute('data-last-violation') === currentViolationWord && parent.querySelector('.violation-tooltip')) {
-                return; 
+                return;
             }
-            
+
             // 기존 제거 및 클래스 추가
             const oldTooltip = parent.querySelector('.violation-tooltip');
             if (oldTooltip) oldTooltip.remove();
@@ -1735,11 +1743,11 @@
 
             el.classList.add('violation-input');
             el.setAttribute('data-last-violation', currentViolationWord);
-            
+
             const violation = violations[0];
             const tooltip = document.createElement('div');
             tooltip.className = 'violation-tooltip';
-            
+
             let content = `⚠️ 의료법 위반 소지 단어: '${violation.word}'`;
             tooltip.innerHTML = `<span>${content}</span>`;
 
@@ -1747,7 +1755,7 @@
                 const btn = document.createElement('button');
                 btn.className = 'fix-btn';
                 btn.innerHTML = `✨ '${violation.replacement}'로 수정하기`;
-                btn.onmousedown = (e) => e.preventDefault(); 
+                btn.onmousedown = (e) => e.preventDefault();
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     e.preventDefault();
@@ -1786,7 +1794,7 @@
             el.addEventListener('blur', el._violationBlur);
 
             parent.appendChild(tooltip);
-            
+
             // 위치 보정
             tooltip.style.top = (el.offsetTop + el.offsetHeight + 6) + 'px';
             tooltip.style.left = el.offsetLeft + 'px';
@@ -1833,12 +1841,18 @@
                 };
             }
 
+            const checkedBookmarks = Array.from(document.querySelectorAll('.bookmark-check:checked')).map(cb => cb.getAttribute('data-target-id'));
+            const selectedIds = Array.from(document.querySelectorAll('#itemsContainer .item-selected')).map(el => el.getAttribute('data-undo-id'));
+
             return {
                 topTitle: document.getElementById('topTitle').value,
                 topDate: document.getElementById('topDate').value,
                 botText: document.getElementById('botText').value,
                 themeColor: document.getElementById('themeHex').value,
-                items: items, focusInfo: focusInfo
+                items: items,
+                focusInfo: focusInfo,
+                checkedBookmarks: checkedBookmarks,
+                selectedIds: selectedIds
             };
         }
 
@@ -1851,6 +1865,9 @@
             if (undoHistory.length > MAX_UNDO) undoHistory.shift();
             redoHistory = [];
             updateRemoteState();
+
+            // sessionStorage 즉시 반영 (디바운스 없이 중요한 변경 시 저장)
+            saveToSessionStorage(snapshot);
         }
 
         let typingTimer = null;
@@ -1896,6 +1913,24 @@
             // 아이템 항목들에 대해서도 검사 수행
             document.querySelectorAll('.item-name').forEach(el => updateViolationUI(el));
             refreshAccordionVisibility();
+
+            // 선택 상태 복구
+            if (data.selectedIds && Array.isArray(data.selectedIds)) {
+                data.selectedIds.forEach(id => {
+                    const el = document.querySelector(`[data-undo-id="${id}"]`);
+                    if (el) el.classList.add('item-selected');
+                });
+            }
+
+            // 북마크 체크 상태 복구
+            if (data.checkedBookmarks && Array.isArray(data.checkedBookmarks)) {
+                data.checkedBookmarks.forEach(id => {
+                    const cb = document.querySelector(`.bookmark-check[data-target-id="${id}"]`);
+                    if (cb) cb.checked = true;
+                });
+                updateBookmarkSidebar();
+            }
+
             updateRemoteState();
 
             if (data.focusInfo) {
@@ -2010,6 +2045,60 @@
             };
             reader.readAsText(file);
             event.target.value = '';
+        }
+
+        /* ============================================================
+         * 자동 임시 저장 (sessionStorage)
+         * ============================================================ */
+        function saveToSessionStorage(data = null) {
+            try {
+                const snapshot = data || getSnapshot();
+                const eventData = {
+                    topTitle: snapshot.topTitle,
+                    topDate: snapshot.topDate,
+                    botText: snapshot.botText,
+                    themeColor: snapshot.themeColor,
+                    items: snapshot.items,
+                    focusInfo: snapshot.focusInfo,
+                    selectedIds: snapshot.selectedIds
+                };
+
+                sessionStorage.setItem(SS_KEY, JSON.stringify(eventData));
+                sessionStorage.setItem(SS_BOOKMARK_KEY, JSON.stringify(snapshot.checkedBookmarks || []));
+
+                if (cachedBgImg?.src?.startsWith('data:')) {
+                    try { sessionStorage.setItem(SS_BG_KEY, cachedBgImg.src); } catch (e) {
+                        console.warn('배경 이미지 저장 용량 초과');
+                    }
+                }
+            } catch (e) { console.warn('sessionStorage 저장 실패:', e.message); }
+        }
+
+        function restoreFromSessionStorage() {
+            try {
+                const savedData = sessionStorage.getItem(SS_KEY);
+                if (!savedData) return false;
+
+                const data = JSON.parse(savedData);
+                const bookmarkData = JSON.parse(sessionStorage.getItem(SS_BOOKMARK_KEY) || '[]');
+
+                // 스냅샷 데이터에 북마크 정보 합치기
+                data.checkedBookmarks = bookmarkData;
+
+                restoreSnapshot(data);
+
+                const bgData = sessionStorage.getItem(SS_BG_KEY);
+                if (bgData) {
+                    const img = new Image(); img.src = bgData;
+                    img.onload = () => {
+                        cachedBgImg = img;
+                        document.getElementById('fileLabel').textContent = '임시 저장에서 복원된 배경 이미지';
+                        document.getElementById('dropZone').classList.add('file-attached');
+                        debouncedGenerateImages();
+                    };
+                }
+                return true;
+            } catch (e) { return false; }
         }
 
         let isAllCollapsed = false;
@@ -2953,11 +3042,11 @@
             ['topTitle', 'topDate', 'botText'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
-                    el.addEventListener('input', () => { 
-                        autoResizeTextarea(el); 
+                    el.addEventListener('input', () => {
+                        autoResizeTextarea(el);
                         updateViolationUI(el);
-                        debouncedGenerateImages(); 
-                        handleInputSnapshot(); 
+                        debouncedGenerateImages();
+                        handleInputSnapshot();
                     });
                     el.addEventListener('paste', () => setTimeout(() => { updateViolationUI(el); saveSnapshot(); }, 0));
                     el.addEventListener('focus', () => { el._beforeValue = el.value; });
@@ -2992,14 +3081,14 @@
             container.addEventListener('change', (e) => { if (e.target.matches('select.btn-input')) debouncedGenerateImages(); });
             container.addEventListener('paste', (e) => { if (e.target.matches('.btn-input')) setTimeout(() => { if (e.target.classList.contains('item-name') || e.target.classList.contains('section-title-input')) updateViolationUI(e.target); saveSnapshot(); }, 0); });
             container.addEventListener('focusin', (e) => { if (e.target.matches('.btn-input')) { e.target._beforeValue = e.target.value; updateViolationUI(e.target); } });
-            container.addEventListener('focusout', (e) => { 
+            container.addEventListener('focusout', (e) => {
                 if (e.target.matches('.btn-input')) {
                     if (e.target._beforeValue !== e.target.value) saveSnapshot();
                 }
             });
 
             // 원본의 기본 초기 데이터 복구
-            if (!restoreFromLocalStorage()) {
+            if (!restoreFromSessionStorage()) {
                 addSectionTitle('굿바이 이벤트');
                 addItemRow(`<붓기삭제 종아리 슬림패키지>\n종아리 보톡스 200u + 슬림주사 100cc\n+지방타파레이저 1000샷`, '', '19만9천');
                 addItemRow('보톡스', '', '9만');
@@ -3020,59 +3109,16 @@
 
         function scheduleAutoSave() {
             clearTimeout(autoSaveTimer);
-            autoSaveTimer = setTimeout(() => {
-                try {
-                    localStorage.setItem(LS_KEY, JSON.stringify(getSnapshot()));
-                    if (cachedBgImg?.src?.startsWith('data:')) {
-                        try { localStorage.setItem(LS_BG_KEY, cachedBgImg.src); } catch (e) { localStorage.removeItem(LS_BG_KEY); }
-                    }
-                } catch (e) { console.warn('자동 저장 실패:', e.message); }
-            }, 2000);
+            autoSaveTimer = setTimeout(() => saveToSessionStorage(), 1000);
         }
 
-        function restoreFromLocalStorage() {
+        function clearAutoSave() {
             try {
-                const saved = localStorage.getItem(LS_KEY);
-                if (!saved) return false;
-                const data = JSON.parse(saved);
-                if (!data || !data.items || data.items.length === 0) return false;
-
-                if (data.hasOwnProperty('topTitle')) document.getElementById('topTitle').value = data.topTitle;
-                if (data.hasOwnProperty('topDate')) document.getElementById('topDate').value = data.topDate;
-                if (data.hasOwnProperty('botText')) document.getElementById('botText').value = data.botText;
-                if (data.themeColor) updateColorSync('theme', data.themeColor);
-
-                document.getElementById('itemsContainer').innerHTML = '';
-                data.items.forEach(item => {
-                    switch (item.type) {
-                        case 'item': addItemRow(item.itemName, item.unit, item.price, item.id); break;
-                        case 'sectionTitle': addSectionTitle(item.value, item.size, item.layout, item.collapsed, item.id, item.bodySize); break;
-                        case 'pageBreak': addPageBreak(null, item.id); break;
-                    }
-                });
-
-                const bgData = localStorage.getItem(LS_BG_KEY);
-                if (bgData) {
-                    const img = new Image(); img.src = bgData;
-                    img.onload = () => { cachedBgImg = img; document.getElementById('fileLabel').textContent = '자동 저장에서 복원된 배경 이미지'; document.getElementById('dropZone').classList.add('file-attached'); debouncedGenerateImages(); };
-                }
-
-                ['topTitle', 'topDate', 'botText'].forEach(id => { 
-                    const el = document.getElementById(id); 
-                    if (el) {
-                        autoResizeTextarea(el);
-                        updateViolationUI(el);
-                    }
-                });
-                
-                // 로드된 아이템들에 대해 위반 검사
-                document.querySelectorAll('.item-name, .section-title-input').forEach(el => updateViolationUI(el));
-
-                refreshAccordionVisibility(); return true;
-            } catch (e) { return false; }
+                sessionStorage.removeItem(SS_KEY);
+                sessionStorage.removeItem(SS_BOOKMARK_KEY);
+                sessionStorage.removeItem(SS_BG_KEY);
+            } catch (e) { }
         }
-
-        function clearAutoSave() { try { localStorage.removeItem(LS_KEY); localStorage.removeItem(LS_BG_KEY); } catch (e) { } }
         function updateColorSync(prefix, color) { document.getElementById(prefix + 'Hex').value = color.toUpperCase(); document.getElementById(prefix + 'Color').value = color; document.getElementById(prefix + 'Swatch').style.backgroundColor = color; }
 
         window.addEventListener('keydown', (e) => {
